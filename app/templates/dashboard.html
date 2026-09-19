@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Web Analytics Tracker - Dashboard</title>
+  <style>
+    body { font-family: -apple-system, Arial, sans-serif; margin: 2rem; color: #1a1a1a; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.05rem; margin-top: 2rem; color: #333; }
+    table { border-collapse: collapse; width: 100%; max-width: 640px; }
+    td, th { border-bottom: 1px solid #ddd; padding: 0.35rem 0.6rem; text-align: left; font-size: 0.9rem; }
+    input { padding: 0.3rem; }
+    button { padding: 0.3rem 0.8rem; cursor: pointer; }
+    .controls { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+    #bounce { font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <h1>Web Analytics Tracker</h1>
+  <div class="controls">
+    <label for="site_id">Site ID</label>
+    <input id="site_id" placeholder="leave blank for all sites">
+    <button onclick="loadAll()">Load report</button>
+  </div>
+
+  <h2>Pageviews per day</h2>
+  <table id="pv"></table>
+
+  <h2>Sessions per day</h2>
+  <table id="sess"></table>
+
+  <h2>Top pages</h2>
+  <table id="pages"></table>
+
+  <h2>Top referrers (by sessions)</h2>
+  <table id="refs"></table>
+
+  <h2>Bounce rate</h2>
+  <div id="bounce">-</div>
+
+  <h2>Custom events</h2>
+  <table id="events"></table>
+
+  <script>
+    async function getJSON(path) {
+      const res = await fetch(path);
+      return res.json();
+    }
+
+    function renderKV(id, obj) {
+      const el = document.getElementById(id);
+      el.innerHTML = "";
+      Object.keys(obj).forEach((key) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${key}</td><td>${obj[key]}</td>`;
+        el.appendChild(row);
+      });
+    }
+
+    function renderList(id, list, keyA, keyB) {
+      const el = document.getElementById(id);
+      el.innerHTML = "";
+      list.forEach((item) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${item[keyA]}</td><td>${item[keyB]}</td>`;
+        el.appendChild(row);
+      });
+    }
+
+    async function loadAll() {
+      const siteId = document.getElementById("site_id").value.trim();
+      const qs = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
+
+      renderKV("pv", await getJSON(`/report/pageviews${qs}`));
+      renderKV("sess", await getJSON(`/report/sessions${qs}`));
+      renderList("pages", await getJSON(`/report/top-pages${qs}`), "page_url", "pageviews");
+      renderList("refs", await getJSON(`/report/top-referrers${qs}`), "referrer", "sessions");
+
+      const bounce = await getJSON(`/report/bounce-rate${qs}`);
+      document.getElementById("bounce").textContent =
+        `${(bounce.bounce_rate * 100).toFixed(1)}% ` +
+        `(${bounce.bounced_sessions} of ${bounce.total_sessions} sessions)`;
+
+      renderKV("events", await getJSON(`/report/events${qs}`));
+    }
+
+    loadAll();
+  </script>
+</body>
+</html>
